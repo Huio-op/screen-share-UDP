@@ -1,7 +1,9 @@
 package org.example;
 
-import java.awt.*;
-  import java.awt.image.BufferedImage;
+import java.awt.AWTException;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -26,7 +28,6 @@ public class SendImage {
   static {
     try {
       ADDRESS = getByName("localhost");
-//      ADDRESS = getByName("10.3.20.19");
     } catch (UnknownHostException e) {
       throw new RuntimeException(e);
     }
@@ -35,8 +36,10 @@ public class SendImage {
   public static void main(String[] args) {
     try {
       Random rand = new Random();
+      Robot robot = new Robot();
       while (true) {
-        BufferedImage bi = new Robot().createScreenCapture(new Rectangle(SCREEN_WIDTH, SCREEN_HEIGHT));
+        BufferedImage bi = robot.createScreenCapture(new Rectangle(SCREEN_WIDTH, SCREEN_HEIGHT));
+
         byte[] imageData = imageToBytes(bi);
 
         byte[] idArr = new byte[1];
@@ -51,12 +54,12 @@ public class SendImage {
           int length = Math.min(imageData.length - offset, MAX_DATAGRAM_SIZE);
           byte[] packetData = new byte[length];
           packetData[0] = (byte) i;
-          packetData[1] = (byte) (numPackets -1);
-          packetData[2] = (byte) id;
+          packetData[1] = (byte) (numPackets - 1);
+          packetData[2] = id;
           System.arraycopy(imageData, offset, packetData, BYTE_OVERHEAD, length - BYTE_OVERHEAD);
           DatagramPacket packet = new DatagramPacket(packetData, packetData.length, ADDRESS, PORT);
           socket.send(packet);
-          System.out.println(id +": Enviado pacote " + (i + 1) + " de " + numPackets + " contendo: " + packet.getLength() + " bytes");
+          System.out.println(id + ": Enviado pacote " + (i + 1) + " de " + numPackets + " contendo: " + packet.getLength() + " bytes");
         }
 
         socket.close();
