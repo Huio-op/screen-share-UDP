@@ -28,7 +28,7 @@ public class RecieveScreen {
 
   public static void main(String[] args) throws IOException {
 
-    BufferedImage bi = null;
+    BufferedImage bi;
     Screen screen = new Screen();
     screen.setVisible(true);
     while (true) {
@@ -64,8 +64,7 @@ public class RecieveScreen {
     throws IOException {
 
     InputStream is = new ByteArrayInputStream(bytes);
-    BufferedImage bi = ImageIO.read(is);
-    return bi;
+    return ImageIO.read(is);
 
   }
 
