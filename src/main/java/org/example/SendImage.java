@@ -48,8 +48,8 @@ public class SendImage {
       new Thread(() -> {
         try {
           receiveMouseEvent();
-        } catch (IOException e) {
-          throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
       }).start();
 
@@ -89,7 +89,7 @@ public class SendImage {
     }
   }
 
-  public static void receiveMouseEvent() throws IOException {
+  public static void receiveMouseEvent() throws Exception {
     DatagramSocket socket = new DatagramSocket(MOUSE_EVENT_PORT);
     byte[] buffer = new byte[MAX_DATAGRAM_SIZE];
     DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -107,6 +107,7 @@ public class SendImage {
 
       robot.mouseMove(x,y);
       robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+      Thread.sleep(15);
       robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
     }
