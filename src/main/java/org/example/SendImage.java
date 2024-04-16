@@ -79,7 +79,7 @@ public class SendImage {
 
         System.out.println("Screenshot capturado e enviado com sucesso!");
 
-        Thread.sleep(200);
+        Thread.sleep(10);
       }
 //      socket.close();
     } catch (IOException e) {
