@@ -66,7 +66,7 @@ public class RecieveImage extends JFrame {
         }
       }
     });
-    getContentPane().add(imageLabel, BorderLayout.CENTER);
+    getContentPane().add(imageLabel, BorderLayout.PAGE_START);
   }
 
   public void displayImage(byte[] imageData) throws IOException {
