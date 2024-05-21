@@ -1,6 +1,7 @@
 package org.example;
 
 import javax.imageio.ImageIO;
+import javax.sound.sampled.*;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -14,10 +15,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -84,6 +82,25 @@ public class RecieveImage extends JFrame {
   }
 
   public static void main(String[] args) throws SocketException {
+    new Thread(() -> {
+      try {
+        recieveImageEvent();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }).start();
+
+    new Thread(() -> {
+      try {
+        recieveAudioEvent();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }).start();
+
+  }
+
+  public static void recieveImageEvent() throws SocketException {
     RecieveImage receiver = new RecieveImage();
     receiver.setVisible(true);
     final List<byte[]> imageBlocks = new ArrayList<>();
@@ -149,6 +166,54 @@ public class RecieveImage extends JFrame {
       receiver.socket.close();
     } catch (IOException e) {
       e.printStackTrace();
+    }
+  }
+
+  public static void recieveAudioEvent() throws LineUnavailableException {
+    AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, true);
+    TargetDataLine microphone;
+    SourceDataLine speakers;
+    microphone = AudioSystem.getTargetDataLine(format);
+
+    DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+    microphone = (TargetDataLine) AudioSystem.getLine(info);
+    microphone.open(format);
+
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    microphone.start();
+
+    DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, format);
+    speakers = (SourceDataLine) AudioSystem.getLine(dataLineInfo);
+    speakers.open(format);
+    speakers.start();
+
+
+    try {
+
+      DatagramSocket serverSocket = new DatagramSocket(AUDIO_PORT);
+
+      while (true) {
+
+        byte[] buffer = new byte[1024];
+        DatagramPacket response = new DatagramPacket(buffer, buffer.length);
+        serverSocket.receive(response);
+
+        out.write(response.getData(), 0, response.getData().length);
+        speakers.write(response.getData(), 0, response.getData().length);
+        String quote = new String(buffer, 0, response.getLength());
+
+        System.out.println(quote);
+        System.out.println();
+
+        //Thread.sleep(10000);
+      }
+
+    } catch (SocketTimeoutException ex) {
+      System.out.println("Timeout error: " + ex.getMessage());
+      ex.printStackTrace();
+    } catch (IOException ex) {
+      System.out.println("Client error: " + ex.getMessage());
+      ex.printStackTrace();
     }
   }
 

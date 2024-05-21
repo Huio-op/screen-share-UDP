@@ -1,28 +1,25 @@
 package org.example;
 
-import java.awt.AWTException;
-import java.awt.Rectangle;
-import java.awt.Robot;
+import javax.imageio.ImageIO;
+import javax.sound.sampled.*;
+import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.util.Random;
-import javax.imageio.ImageIO;
 
 import static java.net.InetAddress.getByName;
 
 public class SendImage {
 
   static int MAX_DATAGRAM_SIZE = 65507;
-  static int PORT = 5000;
+  static int PORT = 8080;
   static int MOUSE_EVENT_PORT = 5001;
+  static int AUDIO_PORT = 5555;
   static InetAddress ADDRESS;
   static int BYTE_OVERHEAD = 3;
 
@@ -41,18 +38,38 @@ public class SendImage {
   }
 
   public static void main(String[] args) {
+
+    new Thread(() -> {
+      try {
+        receiveMouseEvent();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }).start();
+
+    new Thread(() -> {
+      try {
+        sendImageEvent();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }).start();
+
+    new Thread(() -> {
+      try {
+        sendAudioEvent();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }).start();
+
+  }
+
+  public static void sendImageEvent() throws SocketException {
+    Random rand = new Random();
+    DatagramSocket socket = new DatagramSocket();
+
     try {
-      Random rand = new Random();
-      DatagramSocket socket = new DatagramSocket();
-
-      new Thread(() -> {
-        try {
-          receiveMouseEvent();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-      }).start();
-
       while (true) {
         BufferedImage bi = robot.createScreenCapture(new Rectangle(SCREEN_WIDTH, SCREEN_HEIGHT));
 
@@ -75,16 +92,60 @@ public class SendImage {
           DatagramPacket packet = new DatagramPacket(packetData, packetData.length, ADDRESS, PORT);
           socket.send(packet);
           System.out.println(id + ": Enviado pacote " + (i + 1) + " de " + numPackets + " contendo: " + packet.getLength() + " bytes");
+          Thread.sleep(100);
         }
 
         System.out.println("Screenshot capturado e enviado com sucesso!");
 
         Thread.sleep(10);
       }
-//      socket.close();
+      //      socket.close();
     } catch (IOException e) {
       e.printStackTrace();
     } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static void sendAudioEvent() {
+    AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, true);
+    TargetDataLine microphone;
+    SourceDataLine speakers;
+    try {
+      microphone = AudioSystem.getTargetDataLine(format);
+
+      DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+      microphone = (TargetDataLine) AudioSystem.getLine(info);
+      microphone.open(format);
+
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      int numBytesRead;
+      int CHUNK_SIZE = 1024;
+      byte[] data = new byte[microphone.getBufferSize() / 5];
+      microphone.start();
+
+
+      DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, format);
+      speakers = (SourceDataLine) AudioSystem.getLine(dataLineInfo);
+      speakers.open(format);
+      speakers.start();
+
+      DatagramSocket socket = new DatagramSocket();
+      for(;;) {
+        numBytesRead = microphone.read(data, 0, CHUNK_SIZE);
+        //  bytesRead += numBytesRead;
+        // write the mic data to a stream for use later
+        out.write(data, 0, numBytesRead);
+        // write mic data to stream for immediate playback
+//        speakers.write(data, 0, numBytesRead);
+        DatagramPacket request = new DatagramPacket(data,numBytesRead, ADDRESS, AUDIO_PORT);
+        socket.send(request);
+
+      }
+
+    } catch (LineUnavailableException e) {
+      e.printStackTrace();
+    } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
@@ -103,9 +164,9 @@ public class SendImage {
       final int x = dataIn.readInt();
       final int y = dataIn.readInt();
 
-      System.out.println("Recebeu evento do mouse! X=" +x + " Y=" + y);
+      System.out.println("Recebeu evento do mouse! X=" + x + " Y=" + y);
 
-      robot.mouseMove(x,y);
+      robot.mouseMove(x, y);
       robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
       Thread.sleep(15);
       robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
